@@ -1,7 +1,6 @@
 
 export default {
   async fetch(request, env, ctx) {
-    // 서버 작동 확인
     if (request.method === "GET") {
       return new Response("Cake Order Skill Server is running!");
     }
@@ -23,34 +22,23 @@ export default {
       );
     }
 
-    // 고객이 실제로 전송한 메시지
     const utterance =
       payload?.userRequest?.utterance ?? "";
 
-    // 메시지 첫 줄의 대괄호 제목 확인
+    // 고객 메시지의 첫 줄에서 주문 유형 확인
     const firstLine = utterance.trim().split(/\r?\n/)[0];
 
     const match = firstLine.match(/^\[([^\]]+)\]$/);
 
-    const orderTitle = match ? match[1] : "";
+    const orderType = match ? match[1] : "";
 
-    // 주문서 또는 주문 제목인지 확인
+    // 주문서 또는 주문으로 끝나는 제목 인식
     const isOrder =
-      /(?:주문서|주문)$/.test(orderTitle);
+      /(?:주문서|주문)$/.test(orderType);
 
-    let message;
-
-    if (isOrder) {
-      message =
-        `주문서 수신 테스트 성공!\n` +
-        `주문 유형: ${orderTitle}\n\n` +
-        utterance.slice(0, 750);
-    } else {
-      message =
-        "스킬 서버 연결 성공!\n" +
-        "주문서 제목을 확인하지 못했습니다.\n" +
-        `전달받은 글자 수: ${utterance.length}`;
-    }
+    const message = isOrder
+      ? `주문서 수신 테스트 성공!\n주문 유형: ${orderType}\n\n${utterance.slice(0, 750)}`
+      : `스킬 서버 연결 성공!\n주문서 제목을 확인하지 못했습니다.\n전달받은 글자 수: ${utterance.length}`;
 
     return Response.json({
       version: "2.0",
