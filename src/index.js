@@ -26,6 +26,10 @@ export default {
     const utterance =
       payload?.userRequest?.utterance ?? "";
 
+    // 카카오 사용자 ID
+    const customerId =
+      payload?.userRequest?.user?.id ?? null;
+
     // 첫 번째 줄에서 주문서 제목 확인
     const firstLine = utterance.trim().split(/\r?\n/)[0];
 
@@ -37,7 +41,10 @@ export default {
     const isOrder =
       /(?:주문서|주문)$/.test(orderType);
 
-    // 고객에게 보여줄 응답 메시지
+    // DB에 저장할 유형
+    const recordType = isOrder ? orderType : "일반 문의";
+
+    // 주문서 접수 메시지
     const orderMessage = `📋 [주문서 접수가 완료되었습니다]
 
 소중한 주문서를 정상적으로 접수했습니다! 🫶
@@ -50,7 +57,8 @@ export default {
 
 감사합니다! ♡`;
 
-    const inquiryMessage = `📋 [문의 접수 안내]
+    // 일반 문의 접수 메시지
+    const inquiryMessage = `📋 [문의 접수가 완료되었습니다]
 
 소중한 문의를 보내주셔서 감사합니다! 🫶
 
@@ -62,51 +70,58 @@ export default {
 
 감사합니다! ♡`;
 
-    let message = inquiryMessage;
-
-    if (isOrder) {
-      try {
-        // 카카오 사용자 ID 가져오기
-        const customerId =
-          payload?.userRequest?.user?.id ?? null;
-
-        // 주문서 데이터 DB 저장
-        await env.DB.prepare(`
-          INSERT INTO orders (
-            order_type,
-            customer_id,
-            customer_message
-          )
-          VALUES (?, ?, ?)
-        `)
-          .bind(
-            orderType,
-            customerId,
-            utterance
-          )
-          .run();
-
-        // 저장 성공 시 접수 완료 안내
-        message = orderMessage;
-
-      } catch (error) {
-        // DB 저장 실패 시 접수 완료 안내 금지
-        return Response.json(
-          {
-            version: "2.0",
-            template: {
-              outputs: [
-                {
-                  simpleText: {
-                    text: "죄송합니다. 주문서 접수 과정에서 오류가 발생했습니다. 매장으로 다시 문의해 주세요."
-                  }
-                }
-              ]
+    // 빈 메시지는 저장하지 않음
+    if (!utterance.trim()) {
+      return Response.json({
+        version: "2.0",
+        template: {
+          outputs: [
+            {
+              simpleText: {
+                text: "메시지 내용을 확인할 수 없습니다. 다시 보내주세요."
+              }
             }
-          }
-        );
-      }
+          ]
+        }
+      });
     }
+
+    // 주문서와 일반 문의 모두 DB 저장
+    try {
+      await env.DB.prepare(`
+        INSERT INTO orders (
+          order_type,
+          customer_id,
+          customer_message
+        )
+        VALUES (?, ?, ?)
+      `)
+        .bind(
+          recordType,
+          customerId,
+          utterance
+        )
+        .run();
+
+    } catch (error) {
+      return Response.json({
+        version: "2.0",
+        template: {
+          outputs: [
+            {
+              simpleText: {
+                text: "죄송합니다. 메시지 접수 과정에서 오류가 발생했습니다. 잠시 후 다시 보내주세요."
+              }
+            }
+          ]
+        }
+      });
+    }
+
+    // DB 저장 성공 후 유형별 응답 반환
+    const message = isOrder
+      ? orderMessage
+      : inquiryMessage;
 
     return Response.json({
       version: "2.0",
