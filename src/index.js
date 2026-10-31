@@ -1,6 +1,7 @@
 
 export default {
   async fetch(request, env, ctx) {
+    // 서버 작동 확인
     if (request.method === "GET") {
       return new Response("Cake Order Skill Server is running!");
     }
@@ -16,23 +17,40 @@ export default {
     try {
       payload = await request.json();
     } catch (error) {
-      return Response.json({
-        error: "Invalid JSON"
-      }, { status: 400 });
+      return Response.json(
+        { error: "Invalid JSON" },
+        { status: 400 }
+      );
     }
 
+    // 고객이 실제로 전송한 메시지
     const utterance =
       payload?.userRequest?.utterance ?? "";
 
-    const blockName =
-      payload?.userRequest?.block?.name ?? "";
+    // 메시지 첫 줄의 대괄호 제목 확인
+    const firstLine = utterance.trim().split(/\r?\n/)[0];
 
+    const match = firstLine.match(/^\[([^\]]+)\]$/);
+
+    const orderTitle = match ? match[1] : "";
+
+    // 주문서 또는 주문 제목인지 확인
     const isOrder =
-      utterance.includes("[몽땅케이크 주문서]");
+      /(?:주문서|주문)$/.test(orderTitle);
 
-    const message = isOrder
-      ? `주문서 수신 테스트 성공!\n\n${utterance.slice(0, 800)}`
-      : `스킬 서버 연결 성공!\n현재 블록: ${blockName}\n전달받은 글자 수: ${utterance.length}`;
+    let message;
+
+    if (isOrder) {
+      message =
+        `주문서 수신 테스트 성공!\n` +
+        `주문 유형: ${orderTitle}\n\n` +
+        utterance.slice(0, 750);
+    } else {
+      message =
+        "스킬 서버 연결 성공!\n" +
+        "주문서 제목을 확인하지 못했습니다.\n" +
+        `전달받은 글자 수: ${utterance.length}`;
+    }
 
     return Response.json({
       version: "2.0",
