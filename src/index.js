@@ -62,9 +62,51 @@ export default {
 
 감사합니다! ♡`;
 
-    const message = isOrder
-      ? orderMessage
-      : inquiryMessage;
+    let message = inquiryMessage;
+
+    if (isOrder) {
+      try {
+        // 카카오 사용자 ID 가져오기
+        const customerId =
+          payload?.userRequest?.user?.id ?? null;
+
+        // 주문서 데이터 DB 저장
+        await env.DB.prepare(`
+          INSERT INTO orders (
+            order_type,
+            customer_id,
+            customer_message
+          )
+          VALUES (?, ?, ?)
+        `)
+          .bind(
+            orderType,
+            customerId,
+            utterance
+          )
+          .run();
+
+        // 저장 성공 시 접수 완료 안내
+        message = orderMessage;
+
+      } catch (error) {
+        // DB 저장 실패 시 접수 완료 안내 금지
+        return Response.json(
+          {
+            version: "2.0",
+            template: {
+              outputs: [
+                {
+                  simpleText: {
+                    text: "죄송합니다. 주문서 접수 과정에서 오류가 발생했습니다. 매장으로 다시 문의해 주세요."
+                  }
+                }
+              ]
+            }
+          }
+        );
+      }
+    }
 
     return Response.json({
       version: "2.0",
