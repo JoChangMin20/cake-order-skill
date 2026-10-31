@@ -12,7 +12,7 @@ export default {
     }
 
     let payload;
-
+  
     try {
       payload = await request.json();
     } catch (error) {
