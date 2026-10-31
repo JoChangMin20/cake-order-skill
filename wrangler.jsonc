@@ -1,0 +1,6 @@
+{
+  "$schema": "https://www.schemastore.org/wrangler.json",
+  "name": "cake-order-skill",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-31"
+}
